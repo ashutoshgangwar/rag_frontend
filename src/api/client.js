@@ -1,11 +1,23 @@
 /**
- * The only module in the app that talks to the network.
- * Components consume the hooks in src/hooks, which consume this.
+ * The document and chat endpoints.
+ *
+ * Components consume the hooks in src/hooks, which consume this. The transport
+ * itself — base URL, errors, the Authorization header — lives in http.js and is
+ * re-exported here so existing imports keep working.
  */
 
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
-).replace(/\/+$/, '')
+import {
+  ApiError,
+  API_BASE_URL,
+  abortError,
+  authHeaders,
+  isAbortError,
+  noteUnauthorized,
+  request,
+  unreachableMessage,
+} from './http.js'
+
+export { ApiError, API_BASE_URL, isAbortError, unreachableMessage }
 
 /** Backend limits, mirrored here so we can validate before spending a round trip. */
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -16,82 +28,11 @@ export const DEFAULT_TOP_K = 5
 export const DEFAULT_PAGE_SIZE = 20
 
 /**
- * Every failure the UI shows comes back as one of these.
- * `network: true` means we never reached the server, so there is no
- * `body.error` to show and the message is ours, not the backend's.
- */
-export class ApiError extends Error {
-  constructor(message, { status = null, network = false, cause } = {}) {
-    super(message)
-    this.name = 'ApiError'
-    this.status = status
-    this.network = network
-    if (cause) this.cause = cause
-  }
-}
-
-export function unreachableMessage() {
-  return `Cannot reach the backend at ${API_BASE_URL}. Is it running?`
-}
-
-export function isAbortError(error) {
-  return error?.name === 'AbortError'
-}
-
-function abortError() {
-  // Matches what fetch throws so callers only need one check.
-  return Object.assign(new Error('The request was aborted.'), { name: 'AbortError' })
-}
-
-/**
  * Ids are opaque 24-character hex strings (Mongo ObjectIds). They are only
  * ever compared, used as React keys, and pasted into a path — never parsed.
  */
 export function isObjectId(value) {
   return typeof value === 'string' && /^[0-9a-f]{24}$/i.test(value)
-}
-
-/**
- * Single place that turns a response into either a parsed body or a thrown
- * ApiError. Every backend error — at any status — is { success, error }, so
- * we check both `res.ok` and `body.success`.
- */
-async function parseResponse(res) {
-  let body = null
-  try {
-    body = await res.json()
-  } catch {
-    // Non-JSON response (e.g. a proxy error page): fall through with body = null.
-  }
-
-  if (!res.ok || !body?.success) {
-    throw new ApiError(
-      body?.error || `Request failed with status ${res.status}.`,
-      { status: res.status },
-    )
-  }
-  return body
-}
-
-async function request(path, { method = 'GET', json, signal } = {}) {
-  let res
-  try {
-    res = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      signal,
-      // The backend answers GETs with an ETag and no Cache-Control, so a
-      // revalidating cache is free to hand back a list that predates a delete
-      // or an upload. Everything here is read-your-own-writes; never cache it.
-      cache: 'no-store',
-      headers: json ? { 'Content-Type': 'application/json' } : undefined,
-      body: json ? JSON.stringify(json) : undefined,
-    })
-  } catch (err) {
-    // A network-level failure throws before there is any body to parse.
-    if (isAbortError(err)) throw err
-    throw new ApiError(unreachableMessage(), { network: true, cause: err })
-  }
-  return parseResponse(res)
 }
 
 /**
@@ -103,7 +44,11 @@ async function request(path, { method = 'GET', json, signal } = {}) {
 export async function getHealth({ signal } = {}) {
   let res
   try {
-    res = await fetch(`${API_BASE_URL}/api/health`, { signal, cache: 'no-store' })
+    res = await fetch(`${API_BASE_URL}/api/health`, {
+      signal,
+      cache: 'no-store',
+      headers: authHeaders(),
+    })
   } catch (err) {
     if (isAbortError(err)) throw err
     throw new ApiError(unreachableMessage(), { network: true, cause: err })
@@ -245,6 +190,10 @@ export function uploadDocument(file, { onProgress, signal } = {}) {
 
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${API_BASE_URL}/api/documents/upload`)
+    // fetch() gets this from request(); XHR has to be told.
+    for (const [header, value] of Object.entries(authHeaders())) {
+      xhr.setRequestHeader(header, value)
+    }
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress?.(event.loaded / event.total)
@@ -264,6 +213,8 @@ export function uploadDocument(file, { onProgress, signal } = {}) {
         // Non-JSON response: fall through with body = null.
       }
       if (xhr.status < 200 || xhr.status >= 300 || !body?.success) {
+        // request() does this for fetch calls; this one bypasses it.
+        noteUnauthorized(xhr.status)
         reject(
           new ApiError(body?.error || `Upload failed with status ${xhr.status}.`, {
             status: xhr.status,

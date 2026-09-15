@@ -1,4 +1,4 @@
-# RAG Frontend
+# Rangify Intelligence
 
 A single-page React app for a local Retrieval-Augmented Generation backend.
 Upload PDFs, ask questions about them, and see the exact chunks each answer was
@@ -82,10 +82,11 @@ URL — a stopped server should not make the app look broken.
 2. **The RAG backend must already be running**, along with its MongoDB Atlas
    connection and a local Ollama with `llama3.2` and `nomic-embed-text` pulled.
 
-Confirm the backend is up before starting the frontend:
+Confirm the backend is up before starting the frontend — whatever
+`VITE_API_BASE_URL` in your `.env` points at:
 
 ```bash
-curl http://localhost:5050/api/health
+curl "$VITE_API_BASE_URL/api/health"
 ```
 
 You want `"success": true` with both services `reachable`.
@@ -93,8 +94,8 @@ You want `"success": true` with both services `reachable`.
 > **macOS note.** Do not run the backend on port 5000. The AirPlay Receiver
 > listens there and answers every request with an empty `403`, so requests never
 > reach Express. Either turn it off in *System Settings → General → AirDrop &
-> Handoff*, or run the backend on another port. This project's backend uses
-> **5050**.
+> Handoff*, or run the backend on another port and set `VITE_API_BASE_URL` to
+> match.
 
 ---
 
@@ -102,11 +103,12 @@ You want `"success": true` with both services `reachable`.
 
 ```bash
 npm install
-cp .env.example .env     # then edit if your backend is on a different port
 npm run dev
 ```
 
-Vite prints the local URL (typically <http://localhost:5173>).
+`.env` is the only place any URL or port is configured, and it is gitignored, so
+a fresh clone needs one created first — see **Configuration** below for the
+three keys. Vite prints the local URL on startup.
 
 Other scripts:
 
@@ -120,24 +122,120 @@ npm run lint      # eslint
 
 ## Configuration
 
-Vite only exposes variables prefixed with `VITE_`.
+**Every URL and port this app uses comes from `.env`.** Nothing in `src/` or
+`vite.config.js` carries a default, and there is no `.env.example` to drift out
+of sync with it — `.env` is the single source of truth.
 
-| Variable | Default | Purpose |
+| Variable | Required | Purpose |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `http://localhost:5000` | Base URL of the backend, no trailing slash |
+| `VITE_API_BASE_URL` | yes | Base URL of the backend, no trailing slash |
+| `VITE_DEV_PORT` | no | Port for `npm run dev` and `npm run preview` |
+| `VITE_PREVIEW_PORT` | no | Splits `preview` off `VITE_DEV_PORT` when they differ |
+| `VITE_AUTH_MOCK` | no | `true` fakes signup/login in the browser; see **Accounts** |
 
-It is read once in [`src/api/client.js`](src/api/client.js) as
-`import.meta.env.VITE_API_BASE_URL`, and never hardcoded in a component. To point
-at a different port, edit `.env` and **restart the dev server** — Vite reads env
-files at startup, so a running server will not pick up the change.
+`VITE_API_BASE_URL` is read once, in [`src/api/http.js`](src/api/http.js), and
+never hardcoded in a component. **It has no fallback on purpose**: leave it unset
+and the app throws a named error at boot rather than quietly aiming at a port
+somebody guessed — a wrong default is a much harder failure to read than a
+missing one.
+
+The ports are read in [`vite.config.js`](vite.config.js) via `loadEnv`, because
+`import.meta.env` does not exist while the config itself is being evaluated.
+Leave them unset and Vite picks its own default. They use no `VITE_` client
+exposure beyond the prefix: the dev port is build tooling and never reaches the
+browser.
+
+Vite reads env files **at startup only**, so restart the dev server after editing
+`.env` — a running server will not pick the change up.
+
+---
+
+## Accounts
+
+The app is behind a sign-in wall. Signed out, the only thing rendered is the
+sign-in / create-account screen; signed in, the three panels above.
+
+### Signing in
+
+**One input, not two.** The login form asks for "Email or phone" and sends it as
+a single `identifier`. The backend splits on the `@` — with one it is an email,
+without one it is a phone number — and the form applies exactly that rule to
+pick its icon and its validation, so what the form accepts and what the server
+accepts cannot drift apart.
+
+**Keep me signed in** off puts the session in `sessionStorage`, so it ends with
+the tab; on, it goes to `localStorage`.
+
+### Creating an account
+
+Nine fields is a long scroll and a discouraging one, so signup is two steps:
+
+1. **Your account** — `fullName`, `email`, `phone`, `password`, `confirmPassword`
+2. **Your company** — `companyName`, `designation`, `employeeStrength`, `companyIndustry`
+
+Step 1 is validated before step 2 appears. If a step-2 submit turns up a problem
+left behind on step 1, the form jumps back to it — an error message on a field
+nobody can see is a dead end.
+
+Both `email` and `phone` are required, because login accepts either as the
+identifier and there is no signing in with a phone number the account never
+stored. `employeeStrength` is a dropdown over the exact bands the backend takes
+(`1-10`, `11-50`, `51-200`, `201-500`, `501-1000`, `1000+`). `companyIndustry`
+is free text with a datalist of suggestions behind it, so an industry nobody put
+on the list still gets through.
+
+Signup signs you straight in — there is no "now go and log in" second step.
+
+### Session handling
+
+- The token is attached as `Authorization: Bearer <token>` to every request,
+  upload included.
+- **A 401 from any endpoint drops the session** and returns you to the sign-in
+  screen with "Your session expired". That happens in one place — the HTTP layer
+  — so it does not matter which call noticed first. The three auth calls are
+  exempt: a 401 on login is a wrong password, not an expired token.
+- Sign-out in one tab signs the other tabs out too, via a `storage` event.
+- On boot, a stored token is checked against `/api/auth/me` before the workspace
+  is shown. A 401 there signs you out; an *unreachable* backend does not — being
+  offline says nothing about whether the token is valid.
+
+### The contract
+
+Everything the app assumes lives at the top of
+[`src/api/auth.js`](src/api/auth.js) and nowhere else:
+
+| Method | Path | Sends | Expects |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/signup` | the nine fields above | `{ user, token }` |
+| `POST` | `/api/auth/login` | `{ identifier, password }` | `{ user, token }` |
+| `GET` | `/api/auth/me` | — (bearer token) | `{ user }` |
+| `POST` | `/api/auth/logout` | — | — (the client discards the token either way) |
+
+The response readers are deliberately tolerant — `token`/`accessToken`,
+`id`/`_id`, `fullName`/`name`, and a nested `data` wrapper all work. If the shape
+still does not match, `AUTH_ENDPOINTS`, `toSignUpBody`, `toSignInBody`, `toUser`
+and `toToken` are the five things to edit. No component or hook knows an
+endpoint or a field name.
+
+Phone numbers are normalised before they are sent: spaces, dashes and brackets
+come off, a leading `+` stays. That is how people type a number and not how a
+lookup matches one.
+
+### Working without the backend
+
+Set `VITE_AUTH_MOCK=true` in `.env` and the whole flow works offline: accounts
+are kept in `localStorage`, nothing leaves the browser, and the sign-in screen
+says so in a footnote. Unset it once the API is live — the mock is one clearly
+marked block at the bottom of `src/api/auth.js` and can be deleted outright.
 
 ---
 
 ## The API contract it consumes
 
-Base URL `VITE_API_BASE_URL`. No auth, no API keys. Every error, at any status
-code, is `{ "success": false, "error": "Human readable message" }`, which is why
-error handling lives in exactly one helper.
+Base URL `VITE_API_BASE_URL`. Every request carries the session bearer token
+(see **Accounts** above). Every error, at any status code, is
+`{ "success": false, "error": "Human readable message" }`, which is why error
+handling lives in exactly one helper.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -183,7 +281,7 @@ Failure paths worth checking too:
 | Upload the same PDF twice | "Already indexed — showing the existing document." Informational, not a failure |
 | Send a 1001-character question | Counter turns red, "too long to send", the Send button is disabled |
 | Cancel a question mid-flight | "Request cancelled." No error bubble |
-| Stop the backend, then click the badge's **Check again** | Red badge and a banner: "Cannot reach the backend at http://localhost:5050. Is it running?" |
+| Stop the backend, then click the badge's **Check again** | Red badge and a banner: "Cannot reach the backend at &lt;your VITE_API_BASE_URL&gt;. Is it running?" |
 | A scanned/image-only PDF | The backend's 422 message about needing OCR, shown verbatim |
 
 ---
@@ -192,17 +290,35 @@ Failure paths worth checking too:
 
 ```text
 src/
-├── api/client.js          every fetch/XHR call in the app, and nowhere else
+├── App.jsx                the gate: auth screen or workspace, decided once
+├── api/
+│   ├── session.js         where the token lives; no network, no React
+│   ├── http.js            base URL, ApiError, the auth header, the 401 rule
+│   ├── auth.js            signup / login / logout / me, and the offline mock
+│   └── client.js          documents and chat
+├── auth/
+│   ├── AuthContext.js     the context and the useAuth hook
+│   └── AuthProvider.jsx   subscribes to session.js and owns signed-in state
 ├── hooks/
 │   ├── useHealth.js       polls /api/health every 30s
 │   ├── useDocuments.js    the file list, stats, pagination, deletes, chunk loading
 │   └── useChat.js         the conversation and the in-flight, abortable request
-├── components/            presentation only — these never touch the network
-└── utils/format.js        bytes, similarity bands, relative time
+├── components/
+│   ├── auth/              the signed-out screen, its two forms and the backdrop
+│   └── Workspace.jsx      everything behind the wall
+└── utils/
+    ├── format.js          bytes, similarity bands, relative time
+    └── validation.js      email / phone / identifier checks, password strength
 ```
 
 The rule worth keeping: **components never call `fetch` directly.** Every network
-call goes through `src/api/client.js`, and components consume the hooks.
+call goes through `src/api/`, and components consume the hooks.
+
+`session.js` is the single source of truth for the signed-in session, and it is
+deliberately free of React: the HTTP layer needs the token and the provider needs
+the user, and if either kept its own copy they would drift. `AuthProvider`
+subscribes rather than storing, which is what makes a 401 on any request — or a
+sign-out in another tab — show up as a re-render with no callback plumbing.
 
 A few decisions that are easy to undo by accident:
 
@@ -215,6 +331,9 @@ A few decisions that are easy to undo by accident:
   at a time and the request is synchronous, so it can legitimately run minutes.
 - **The download endpoint never goes through the JSON helper** — it returns raw
   bytes, so it is a plain `<a href>`.
+- **A 401 on the sign-in call does not clear the session.** It is a wrong
+  password, not an expired token; `skipAuthRedirect` marks the three auth calls
+  that are exempt from the automatic sign-out.
 - **`sources[].content` is rendered as text, never HTML.** It is untrusted text
   extracted from a user's PDF; newlines are preserved with `white-space: pre-wrap`.
 

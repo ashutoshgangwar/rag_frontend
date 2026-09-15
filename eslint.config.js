@@ -18,4 +18,10 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // Config files run in Node, not the browser: they read process.env to get
+    // the port out of .env before any browser globals exist.
+    files: ['*.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])
