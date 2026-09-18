@@ -1,5 +1,6 @@
 
 import { clearSession, getAccessToken } from './session.js'
+import { isPaywallResponse, reportPaywall, reportUsage } from './meter.js'
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL
 
@@ -75,11 +76,22 @@ export async function parseResponse(res, { skipAuthRedirect = false } = {}) {
 
   if (!res.ok || !body?.success) {
     handleUnauthorized(res.status, { skipAuthRedirect })
-    throw new ApiError(body?.error || `Request failed with status ${res.status}.`, {
+    const error = new ApiError(body?.error || `Request failed with status ${res.status}.`, {
       status: res.status,
       details: body?.details ?? null,
     })
+    // Out of free prompts. Announced here, once, so the paywall opens no
+    // matter which metered call hit it; the error still reaches the caller,
+    // flagged, so it can hand the user's text back rather than show a failure.
+    if (isPaywallResponse(res.status, error.details)) {
+      error.paywall = true
+      reportPaywall({ message: error.message, details: error.details })
+    }
+    throw error
   }
+
+  // Metered calls report the remaining quota on every success.
+  if (body.usage) reportUsage(body.usage)
   return body
 }
 

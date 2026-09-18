@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { askFollowUp, describeAgentError, runAgent } from '../api/agents.js'
 import { isAbortError } from '../api/http.js'
+import { isPaywallError } from '../api/meter.js'
 
 let turnCounter = 0
 const nextTurnId = () => `t${++turnCounter}`
@@ -15,6 +16,10 @@ const nextTurnId = () => `t${++turnCounter}`
  * Each submit is a new run with a new runId; the previous answer and thread
  * are dropped when it starts. A request in flight is aborted by a newer one,
  * by `cancel`, by `reset` and by leaving the page.
+ *
+ * Running out of free prompts is not shown as an error here: the paywall
+ * (opened by the HTTP layer) explains it, and the form and follow-up box keep
+ * what was typed so it can be sent again after subscribing.
  */
 export function useAgentRun(agentId) {
   const [run, setRun] = useState(null) // { runId, text, tookMs }
@@ -53,7 +58,7 @@ export function useAgentRun(agentId) {
         setRun(result)
         return null
       } catch (err) {
-        if (isAbortError(err)) return null
+        if (isAbortError(err) || isPaywallError(err)) return null
         const described = describeAgentError(err)
         setRunError(described)
         return described
@@ -82,7 +87,7 @@ export function useAgentRun(agentId) {
         ])
         return true
       } catch (err) {
-        if (!isAbortError(err)) setAskError(describeAgentError(err))
+        if (!isAbortError(err) && !isPaywallError(err)) setAskError(describeAgentError(err))
         return false
       } finally {
         finish(controller)

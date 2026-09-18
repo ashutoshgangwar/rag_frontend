@@ -11,22 +11,36 @@ import UploadPanel from './UploadPanel.jsx'
 import DocumentList from './DocumentList.jsx'
 import ChatWindow from './ChatWindow.jsx'
 import AgentsView from './agents/AgentsView.jsx'
+import PricingPage from './billing/PricingPage.jsx'
+import AccountPage from './billing/AccountPage.jsx'
+import PaywallModal from './billing/PaywallModal.jsx'
+import AdminPage from './admin/AdminPage.jsx'
 import { useHealth } from '../hooks/useHealth.js'
 import { useDocuments } from '../hooks/useDocuments.js'
 import { useChat } from '../hooks/useChat.js'
 import { API_BASE_URL } from '../api/client.js'
-import { matchAgentsRoute, useRoute } from '../hooks/useRoute.js'
+import { matchAgentsRoute, matchPageRoute, useRoute } from '../hooks/useRoute.js'
+import { useAuth } from '../auth/AuthContext.js'
+import { isAdmin } from '../api/admin.js'
 
 export default function Workspace() {
   const health = useHealth()
   const documents = useDocuments()
   const chat = useChat()
   const uploadRef = useRef(null)
-  // /agents and /agents/:id are the agent views; every other path is the
-  // document workspace, exactly as it was before agents existed.
+  const { user } = useAuth()
+  // /agents and /agents/:id are the agent views; /pricing, /account and
+  // /admin are pages of their own; every other path is the document
+  // workspace, exactly as it was before agents existed. /admin is simply not
+  // a route for anyone but an admin — it falls through to documents.
   const { path, state: routeState, navigate } = useRoute()
   const agentsRoute = matchAgentsRoute(path)
-  const view = agentsRoute ? 'agents' : 'documents'
+  const page = matchPageRoute(path)
+  const view = agentsRoute
+    ? 'agents'
+    : page === 'admin' && !isAdmin(user)
+      ? 'documents'
+      : (page ?? 'documents')
   const onViewChange = useCallback(
     (next) => navigate(next === 'agents' ? '/agents' : '/'),
     [navigate],
@@ -85,6 +99,14 @@ export default function Workspace() {
       {agentsRoute && (
         <main className="agents-view">
           <AgentsView route={agentsRoute} routeState={routeState} navigate={navigate} />
+        </main>
+      )}
+
+      {(view === 'pricing' || view === 'account' || view === 'admin') && (
+        <main className="page-main">
+          {view === 'pricing' && <PricingPage />}
+          {view === 'account' && <AccountPage />}
+          {view === 'admin' && <AdminPage />}
         </main>
       )}
 
@@ -152,6 +174,9 @@ export default function Workspace() {
           </aside>
         </main>
       )}
+
+      {/* Opened by a 402 from any metered call, wherever it came from. */}
+      <PaywallModal />
     </div>
   )
 }

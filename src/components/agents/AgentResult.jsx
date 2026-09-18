@@ -4,6 +4,8 @@ import AnswerText from './AnswerText.jsx'
 import CopyButton from './CopyButton.jsx'
 import { LIMITS } from '../../agents/form.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
+import { QuotaInline } from '../billing/QuotaIndicator.jsx'
+import { useSubscription } from '../../subscription/SubscriptionContext.js'
 
 const DISCLAIMER = 'AI-generated. Check important details before using.'
 
@@ -46,10 +48,11 @@ export function ThinkingCard({ agent, compact = false, onCancel }) {
 }
 
 function FollowUpForm({ disabled, onAsk }) {
+  const { canPrompt } = useSubscription()
   const [text, setText] = useState('')
   const length = text.trim().length
   const over = length > LIMITS.question
-  const canSend = length > 0 && !over && !disabled
+  const canSend = length > 0 && !over && !disabled && canPrompt
 
   const submit = async (event) => {
     event.preventDefault()
@@ -85,10 +88,13 @@ function FollowUpForm({ disabled, onAsk }) {
           <AgentIcon name="send" size={16} />
         </button>
       </div>
-      <small id="agent-followup-count" className={`brief-counter ${over ? 'over' : ''}`}>
-        {formatNumber(length)} / {formatNumber(LIMITS.question)}
-        {over && ' — too long to send'}
-      </small>
+      <div className="followup-foot">
+        <QuotaInline />
+        <small id="agent-followup-count" className={`brief-counter ${over ? 'over' : ''}`}>
+          {formatNumber(length)} / {formatNumber(LIMITS.question)}
+          {over && ' — too long to send'}
+        </small>
+      </div>
     </form>
   )
 }

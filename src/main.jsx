@@ -12,12 +12,18 @@ const root = createRoot(document.getElementById('root'))
  * the console. Importing the app dynamically puts the failure somewhere it can
  * be caught and rendered.
  */
-Promise.all([import('./App.jsx'), import('./auth/AuthProvider.jsx')])
-  .then(([{ default: App }, { default: AuthProvider }]) => {
+Promise.all([
+  import('./App.jsx'),
+  import('./auth/AuthProvider.jsx'),
+  import('./subscription/SubscriptionProvider.jsx'),
+])
+  .then(([{ default: App }, { default: AuthProvider }, { default: SubscriptionProvider }]) => {
     root.render(
       <StrictMode>
         <AuthProvider>
-          <App />
+          <SubscriptionProvider>
+            <App />
+          </SubscriptionProvider>
         </AuthProvider>
       </StrictMode>,
     )

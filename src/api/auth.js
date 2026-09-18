@@ -119,6 +119,9 @@ function toUser(raw) {
     employeeStrength: source.employeeStrength ?? '',
     companyIndustry: source.companyIndustry ?? '',
     createdAt: source.createdAt ?? null,
+    // 'user' unless the server says otherwise; only 'admin' unlocks /admin.
+    role: source.role === 'admin' ? 'admin' : 'user',
+    promptsUsed: Number.isFinite(source.promptsUsed) ? source.promptsUsed : 0,
   }
 }
 

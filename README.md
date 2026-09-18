@@ -76,6 +76,30 @@ URL — a stopped server should not make the app look broken.
 
 ---
 
+## Plans, quota and the paywall
+
+Chat, agent runs and agent follow-ups are metered by the backend: a few free
+prompts (set by an admin), then **HTTP 402** until the user buys a plan.
+
+- **One place handles it.** `parseResponse()` in `src/api/http.js` spots a 402
+  with `details.code === 'SUBSCRIPTION_REQUIRED'` and any `usage` on a success,
+  and announces both through `src/api/meter.js`. `SubscriptionProvider`
+  (`src/subscription/`) is the only listener: it opens the paywall and keeps the
+  counter current. No component knows which endpoints are metered.
+- **The typed text survives a 402.** The chat box and follow-up box get it back,
+  the agent form never loses it, and the refused question is taken out of the
+  thread. Subscribe, then press Send again.
+- **`GET /api/subscriptions/me` is the source of truth.** It is fetched on sign-in
+  (and on load with a stored token), after a purchase and after any 402. Between
+  those, `usage` updates the counter. Signing out clears it.
+- **Buying goes through `purchasePlan(planId)`** in the provider. No payment is
+  taken yet: the plan activates immediately. The `TODO: payment gateway` there
+  is where checkout goes.
+- **Routes:** `/pricing` (open to signed-out visitors; Subscribe signs in first
+  and comes back with the plan's confirmation open), `/account` (billing status
+  and history), `/admin` (plans and the free limit; routed only for
+  `role === 'admin'`).
+
 ## Prerequisites
 
 1. **Node.js 18+** (Vite requires it). Check with `node -v`.

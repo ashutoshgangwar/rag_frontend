@@ -94,6 +94,15 @@ export function formatAbsoluteTime(isoString) {
   return new Date(timestamp).toLocaleString()
 }
 
+/** "18 Oct 2026" (in the user's locale's order) — a date, no time. */
+export function formatDate(isoString) {
+  const timestamp = Date.parse(isoString)
+  if (Number.isNaN(timestamp)) return '—'
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(
+    timestamp,
+  )
+}
+
 export function pluralize(count, singular, plural = `${singular}s`) {
   return count === 1 ? singular : plural
 }

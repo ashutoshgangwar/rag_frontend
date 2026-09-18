@@ -1,6 +1,8 @@
 import AgentIcon from './AgentIcon.jsx'
 import { LIMITS, fieldType, fieldsOf, promptField } from '../../agents/form.js'
 import { formatNumber } from '../../utils/format.js'
+import { QuotaInline } from '../billing/QuotaIndicator.jsx'
+import { useSubscription } from '../../subscription/SubscriptionContext.js'
 
 /**
  * An agent's form, built from `agent.fields`. Fully controlled: values and
@@ -12,13 +14,14 @@ import { formatNumber } from '../../utils/format.js'
  * locked so the request on screen is the one being answered.
  */
 export default function BriefForm({ agent, values, errors, formError, running, onChange, onSubmit, onCancel }) {
+  const { canPrompt } = useSubscription()
   const fields = fieldsOf(agent)
   const exampleTarget = promptField(agent)
   const examples = Array.isArray(agent.examples) ? agent.examples.filter((text) => typeof text === 'string') : []
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    if (!running) onSubmit()
+    if (!running && canPrompt) onSubmit()
   }
 
   return (
@@ -117,12 +120,13 @@ export default function BriefForm({ agent, values, errors, formError, running, o
       </fieldset>
 
       <div className="brief-actions">
+        <QuotaInline className="brief-quota" />
         {running && (
           <button type="button" className="btn" onClick={onCancel}>
             Cancel
           </button>
         )}
-        <button type="submit" className="btn btn-primary btn-glow" disabled={running} aria-busy={running}>
+        <button type="submit" className="btn btn-primary btn-glow" disabled={running || !canPrompt} aria-busy={running}>
           <AgentIcon name="spark" size={16} />
           {running ? 'Thinking…' : agent.cta || 'Run'}
         </button>

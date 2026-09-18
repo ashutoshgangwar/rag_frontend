@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext.js'
 import { displayName, initials } from '../utils/validation.js'
+import { isAdmin } from '../api/admin.js'
+import { navigate } from '../hooks/useRoute.js'
 import ThemeToggle from './ThemeToggle.jsx'
 
 /**
@@ -31,6 +33,11 @@ export default function UserMenu() {
   }, [open])
 
   if (!user) return null
+
+  const go = (path) => {
+    setOpen(false)
+    navigate(path)
+  }
 
   const handleSignOut = async () => {
     setBusy(true)
@@ -76,6 +83,21 @@ export default function UserMenu() {
               )}
             </div>
           </div>
+
+          <nav className="user-popover-nav" aria-label="Account">
+            <button type="button" role="menuitem" onClick={() => go('/account')}>
+              Account &amp; billing
+            </button>
+            <button type="button" role="menuitem" onClick={() => go('/pricing')}>
+              Plans &amp; pricing
+            </button>
+            {/* Admin navigation exists only for admins; the API enforces it too. */}
+            {isAdmin(user) && (
+              <button type="button" role="menuitem" onClick={() => go('/admin')}>
+                Admin
+              </button>
+            )}
+          </nav>
 
           {/* Repeated here because the header copy is hidden on narrow screens. */}
           <div className="user-popover-row">

@@ -3,6 +3,8 @@ import MessageBubble from './MessageBubble.jsx'
 import FileScopePicker from './FileScopePicker.jsx'
 import { DEFAULT_TOP_K, MAX_QUESTION_LENGTH, MAX_TOP_K, MIN_TOP_K } from '../api/client.js'
 import { pluralize } from '../utils/format.js'
+import { QuotaInline } from './billing/QuotaIndicator.jsx'
+import { useSubscription } from '../subscription/SubscriptionContext.js'
 
 export default function ChatWindow({
   messages,
@@ -14,6 +16,7 @@ export default function ChatWindow({
   onJumpToUpload,
   disabled,
 }) {
+  const { canPrompt } = useSubscription()
   const [question, setQuestion] = useState('')
   const [topK, setTopK] = useState(DEFAULT_TOP_K)
   // Empty means "all", which is exactly what the backend expects.
@@ -49,12 +52,17 @@ export default function ChatWindow({
 
   const length = question.length
   const overLimit = length > MAX_QUESTION_LENGTH
-  const canSend = question.trim().length > 0 && !overLimit && !pending && !disabled
+  const canSend = question.trim().length > 0 && !overLimit && !pending && !disabled && canPrompt
 
-  const submit = () => {
+  const submit = async () => {
     if (!canSend) return
-    onAsk(question, { topK, fileIds: liveScopeIds, scope: scopeLabel })
+    // The question moves into the thread while it is answered. If it was not
+    // used up (the paywall opened), it comes back here to be resent —
+    // unless the user has started typing something else meanwhile.
+    const sent = question
     setQuestion('')
+    const used = await onAsk(sent, { topK, fileIds: liveScopeIds, scope: scopeLabel })
+    if (used === false) setQuestion((current) => current || sent)
   }
 
   const onKeyDown = (event) => {
@@ -170,6 +178,8 @@ export default function ChatWindow({
               disabled={pending}
             />
           </div>
+
+          <QuotaInline />
 
           <span
             id="char-counter"

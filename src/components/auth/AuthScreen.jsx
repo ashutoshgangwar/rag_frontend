@@ -7,6 +7,7 @@ import AuroraBackground from './AuroraBackground.jsx'
 import SignInForm from './SignInForm.jsx'
 import SignUpForm from './SignUpForm.jsx'
 import { CheckIcon } from './Icons.jsx'
+import { navigate, useRoute } from '../../hooks/useRoute.js'
 
 const POINTS = [
   ['Grounded answers', 'Every reply cites the exact chunk it was built from.'],
@@ -22,6 +23,9 @@ const POINTS = [
 export default function AuthScreen() {
   const [mode, setMode] = useState('signin')
   const { notice, dismissNotice } = useAuth()
+  const { path, state } = useRoute()
+  // Sent here from /pricing: signing in brings them straight back.
+  const fromPricing = path.startsWith('/pricing') && state?.signIn
 
   return (
     <div className="auth-screen">
@@ -62,6 +66,12 @@ export default function AuthScreen() {
           </div>
         )}
 
+        {fromPricing && (
+          <div className="notice notice-info auth-notice" role="status">
+            <p>Sign in or create an account to subscribe. You'll come straight back to the plans.</p>
+          </div>
+        )}
+
         {/* Two tabs rather than a link, so the choice is visible before the
             user has read a word of the form. The pill slides between them. */}
         <div
@@ -98,6 +108,12 @@ export default function AuthScreen() {
             <SignUpForm onSwitchToSignIn={() => setMode('signin')} />
           )}
         </div>
+
+        <p className="auth-pricing-link">
+          <button type="button" className="btn-link" onClick={() => navigate('/pricing')}>
+            {fromPricing ? 'Back to plans & pricing' : 'See plans & pricing'}
+          </button>
+        </p>
 
         {USING_MOCK_AUTH && (
           <p className="auth-mock-note">

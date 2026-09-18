@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_TOP_K, isAbortError, sendChat } from '../api/client.js'
+import { isPaywallError } from '../api/meter.js'
 
 let messageCounter = 0
 const nextId = () => `m${++messageCounter}`
@@ -33,6 +34,11 @@ function looksLikeIndexLag(answer, sources) {
  *
  * There is no conversation memory on the backend — each question is answered
  * independently — so nothing here is sent as history.
+ *
+ * `ask` resolves false when the question was not used up and belongs back in
+ * the input — today only when the free prompts have run out, where the
+ * paywall (opened by the HTTP layer) explains it and the user resends after
+ * subscribing.
  */
 export function useChat() {
   const [messages, setMessages] = useState([])
@@ -50,15 +56,16 @@ export function useChat() {
   const ask = useCallback(
     async (question, { topK = DEFAULT_TOP_K, fileIds = [], scope = null } = {}) => {
       const trimmed = question.trim()
-      if (!trimmed || abortRef.current) return
+      if (!trimmed || abortRef.current) return false
 
       const controller = new AbortController()
       abortRef.current = controller
 
       const askedAt = Date.now()
+      const questionId = nextId()
       setMessages((current) => [
         ...current,
-        { id: nextId(), role: 'user', content: trimmed, scope, createdAt: askedAt },
+        { id: questionId, role: 'user', content: trimmed, scope, createdAt: askedAt },
       ])
       setPending(true)
 
@@ -88,18 +95,25 @@ export function useChat() {
             createdAt: Date.now(),
           },
         ])
+        return true
       } catch (err) {
         if (isAbortError(err)) {
           setMessages((current) => [
             ...current,
             { id: nextId(), role: 'system', content: 'Request cancelled.', createdAt: Date.now() },
           ])
-          return
+          return true
+        }
+        if (isPaywallError(err)) {
+          // Not asked after all: out of the thread, back into the input.
+          setMessages((current) => current.filter((message) => message.id !== questionId))
+          return false
         }
         setMessages((current) => [
           ...current,
           { id: nextId(), role: 'assistant', error: err.message, createdAt: Date.now() },
         ])
+        return true
       } finally {
         if (abortRef.current === controller) abortRef.current = null
         setPending(false)

@@ -3,12 +3,21 @@ import HealthBadge from './HealthBadge.jsx'
 import UserMenu from './UserMenu.jsx'
 import ThemeToggle from './ThemeToggle.jsx'
 import AgentIcon from './agents/AgentIcon.jsx'
+import { QuotaBadge } from './billing/QuotaIndicator.jsx'
 import { formatNumber, pluralize } from '../utils/format.js'
 
 const VIEWS = [
   { id: 'agents', label: 'AI Agents', icon: 'spark' },
   { id: 'documents', label: 'Documents', icon: 'doc' },
 ]
+
+const SUBTITLES = {
+  agents: 'AI agents that answer, explain, draft and plan for you.',
+  documents: 'Ask questions against your own PDFs — retrieval and all.',
+  pricing: 'Plans for unlimited chat and AI agents.',
+  account: 'Your account and billing.',
+  admin: 'Plans, pricing and limits.',
+}
 
 export default function Header({ health, status, error, onRefresh, stats, view, onViewChange }) {
   const fileCount = stats?.files ?? 0
@@ -20,11 +29,7 @@ export default function Header({ health, status, error, onRefresh, stats, view, 
         <BrandMark />
         <div>
           <h1 className="gradient-text">Rangify Intelligence</h1>
-          <p className="muted">
-            {view === 'agents'
-              ? 'AI agents that answer, explain, draft and plan for you.'
-              : 'Ask questions against your own PDFs — retrieval and all.'}
-          </p>
+          <p className="muted">{SUBTITLES[view] ?? SUBTITLES.documents}</p>
         </div>
       </div>
 
@@ -50,6 +55,7 @@ export default function Header({ health, status, error, onRefresh, stats, view, 
             {formatNumber(chunkCount)} {pluralize(chunkCount, 'chunk')} indexed
           </span>
         )}
+        <QuotaBadge />
         <HealthBadge health={health} status={status} error={error} onRefresh={onRefresh} />
         <ThemeToggle className="header-theme" />
         <UserMenu />
