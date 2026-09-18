@@ -1,9 +1,15 @@
 import BrandMark from './BrandMark.jsx'
 import HealthBadge from './HealthBadge.jsx'
 import UserMenu from './UserMenu.jsx'
+import AgentIcon from './agents/AgentIcon.jsx'
 import { formatNumber, pluralize } from '../utils/format.js'
 
-export default function Header({ health, status, error, onRefresh, stats }) {
+const VIEWS = [
+  { id: 'agents', label: 'AI Agents', icon: 'spark' },
+  { id: 'documents', label: 'Documents', icon: 'doc' },
+]
+
+export default function Header({ health, status, error, onRefresh, stats, view, onViewChange }) {
   const fileCount = stats?.files ?? 0
   const chunkCount = stats?.chunks ?? 0
 
@@ -13,15 +19,36 @@ export default function Header({ health, status, error, onRefresh, stats }) {
         <BrandMark />
         <div>
           <h1 className="gradient-text">Rangify Intelligence</h1>
-          <p className="muted">Ask questions against your own PDFs — retrieval and all.</p>
+          <p className="muted">
+            {view === 'agents'
+              ? 'AI agents that book, order, answer and draft for you.'
+              : 'Ask questions against your own PDFs — retrieval and all.'}
+          </p>
         </div>
       </div>
 
+      <nav className="view-switch" aria-label="Workspace">
+        {VIEWS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`view-tab ${view === item.id ? 'view-tab-active' : ''}`}
+            aria-current={view === item.id ? 'page' : undefined}
+            onClick={() => onViewChange(item.id)}
+          >
+            <AgentIcon name={item.icon} size={15} />
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
       <div className="header-meta">
-        <span className="chunk-pill" title="Everything currently indexed">
-          {formatNumber(fileCount)} {pluralize(fileCount, 'document')} ·{' '}
-          {formatNumber(chunkCount)} {pluralize(chunkCount, 'chunk')} indexed
-        </span>
+        {view === 'documents' && (
+          <span className="chunk-pill" title="Everything currently indexed">
+            {formatNumber(fileCount)} {pluralize(fileCount, 'document')} ·{' '}
+            {formatNumber(chunkCount)} {pluralize(chunkCount, 'chunk')} indexed
+          </span>
+        )}
         <HealthBadge health={health} status={status} error={error} onRefresh={onRefresh} />
         <UserMenu />
       </div>

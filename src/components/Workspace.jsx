@@ -1,14 +1,16 @@
 /**
- * Everything behind the sign-in wall: health, documents and chat.
+ * Everything behind the sign-in wall: the AI agent hub, plus health,
+ * documents and chat for the RAG view.
  *
  * Split out of App so that none of these hooks — and none of their polling —
  * start until there is a session to make requests with.
  */
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import Header from './Header.jsx'
 import UploadPanel from './UploadPanel.jsx'
 import DocumentList from './DocumentList.jsx'
 import ChatWindow from './ChatWindow.jsx'
+import AgentHub from './agents/AgentHub.jsx'
 import { useHealth } from '../hooks/useHealth.js'
 import { useDocuments } from '../hooks/useDocuments.js'
 import { useChat } from '../hooks/useChat.js'
@@ -19,6 +21,8 @@ export default function Workspace() {
   const documents = useDocuments()
   const chat = useChat()
   const uploadRef = useRef(null)
+  // Agents are the landing view; the RAG document chat is one tab away.
+  const [view, setView] = useState('agents')
 
   const offline = health.status === 'unreachable'
 
@@ -66,9 +70,17 @@ export default function Workspace() {
         error={health.error}
         onRefresh={health.refresh}
         stats={documents.stats}
+        view={view}
+        onViewChange={setView}
       />
 
-      {offline && (
+      {view === 'agents' && (
+        <main className="agents-view">
+          <AgentHub />
+        </main>
+      )}
+
+      {view === 'documents' && offline && (
         <div className="banner banner-error" role="alert">
           <div>
             <strong>Cannot reach the backend at {API_BASE_URL}. Is it running?</strong>
@@ -83,7 +95,7 @@ export default function Workspace() {
         </div>
       )}
 
-      {health.status === 'degraded' && (
+      {view === 'documents' && health.status === 'degraded' && (
         <div className="banner banner-warn" role="alert">
           <div>
             <strong>The backend is degraded.</strong>
@@ -96,40 +108,42 @@ export default function Workspace() {
         </div>
       )}
 
-      <main className="layout">
-        <ChatWindow
-          messages={chat.messages}
-          pending={chat.pending}
-          files={documents.files}
-          onAsk={chat.ask}
-          onCancel={chat.cancel}
-          onClear={chat.clearConversation}
-          onJumpToUpload={jumpToUpload}
-          disabled={offline}
-        />
-
-        <aside className="sidebar">
-          <UploadPanel ref={uploadRef} onUploaded={handleUploaded} />
-
-          <DocumentList
+      {view === 'documents' && (
+        <main className="layout">
+          <ChatWindow
+            messages={chat.messages}
+            pending={chat.pending}
             files={documents.files}
-            total={documents.total}
-            stats={documents.stats}
-            offset={documents.offset}
-            pageSize={documents.pageSize}
-            loading={documents.loading}
-            error={documents.error}
-            busyId={documents.busyId}
-            clearing={documents.clearing}
-            onGoToPage={documents.goToPage}
-            onLoadChunks={documents.loadChunks}
-            onDelete={handleDelete}
-            onClearAll={handleClearAll}
-            onReupload={startReupload}
-            onRefresh={documents.refresh}
+            onAsk={chat.ask}
+            onCancel={chat.cancel}
+            onClear={chat.clearConversation}
+            onJumpToUpload={jumpToUpload}
+            disabled={offline}
           />
-        </aside>
-      </main>
+
+          <aside className="sidebar">
+            <UploadPanel ref={uploadRef} onUploaded={handleUploaded} />
+
+            <DocumentList
+              files={documents.files}
+              total={documents.total}
+              stats={documents.stats}
+              offset={documents.offset}
+              pageSize={documents.pageSize}
+              loading={documents.loading}
+              error={documents.error}
+              busyId={documents.busyId}
+              clearing={documents.clearing}
+              onGoToPage={documents.goToPage}
+              onLoadChunks={documents.loadChunks}
+              onDelete={handleDelete}
+              onClearAll={handleClearAll}
+              onReupload={startReupload}
+              onRefresh={documents.refresh}
+            />
+          </aside>
+        </main>
+      )}
     </div>
   )
 }
