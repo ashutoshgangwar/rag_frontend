@@ -5,24 +5,32 @@
  * Split out of App so that none of these hooks — and none of their polling —
  * start until there is a session to make requests with.
  */
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import Header from './Header.jsx'
 import UploadPanel from './UploadPanel.jsx'
 import DocumentList from './DocumentList.jsx'
 import ChatWindow from './ChatWindow.jsx'
-import AgentHub from './agents/AgentHub.jsx'
+import AgentsView from './agents/AgentsView.jsx'
 import { useHealth } from '../hooks/useHealth.js'
 import { useDocuments } from '../hooks/useDocuments.js'
 import { useChat } from '../hooks/useChat.js'
 import { API_BASE_URL } from '../api/client.js'
+import { matchAgentsRoute, useRoute } from '../hooks/useRoute.js'
 
 export default function Workspace() {
   const health = useHealth()
   const documents = useDocuments()
   const chat = useChat()
   const uploadRef = useRef(null)
-  // Agents are the landing view; the RAG document chat is one tab away.
-  const [view, setView] = useState('agents')
+  // /agents and /agents/:id are the agent views; every other path is the
+  // document workspace, exactly as it was before agents existed.
+  const { path, state: routeState, navigate } = useRoute()
+  const agentsRoute = matchAgentsRoute(path)
+  const view = agentsRoute ? 'agents' : 'documents'
+  const onViewChange = useCallback(
+    (next) => navigate(next === 'agents' ? '/agents' : '/'),
+    [navigate],
+  )
 
   const offline = health.status === 'unreachable'
 
@@ -71,12 +79,12 @@ export default function Workspace() {
         onRefresh={health.refresh}
         stats={documents.stats}
         view={view}
-        onViewChange={setView}
+        onViewChange={onViewChange}
       />
 
-      {view === 'agents' && (
+      {agentsRoute && (
         <main className="agents-view">
-          <AgentHub />
+          <AgentsView route={agentsRoute} routeState={routeState} navigate={navigate} />
         </main>
       )}
 

@@ -1,19 +1,9 @@
 import { useMemo, useState } from 'react'
 import AgentCard from './AgentCard.jsx'
 import AgentIcon from './AgentIcon.jsx'
-import AgentSession from './AgentSession.jsx'
-import { GROUPS, routeRequest } from '../../agents/catalog.js'
-import { IS_DEMO } from '../../api/agents.js'
-import { useAgents } from '../../hooks/useAgents.js'
+import { findAgentForText, matchesSearch } from '../../agents/form.js'
 import { useAuth } from '../../auth/AuthContext.js'
 import { displayName } from '../../utils/validation.js'
-
-const QUICK_ASKS = [
-  'Book a hotel in Goa for next weekend',
-  'Order biryani for dinner',
-  'Explain Newton’s laws simply',
-  'Write an email asking for leave',
-]
 
 function greeting() {
   const hour = new Date().getHours()
@@ -23,19 +13,21 @@ function greeting() {
 }
 
 /**
- * The agent launcher. Two ways in: type what you want (routed to the best
- * agent by keyword), or pick an agent from the grid. Either way the grid is
- * swapped for that agent's session; Back returns here with filters intact.
+ * The agent launcher, built only from what GET /api/agents returned. Two ways
+ * in: type what you want (matched to an agent by keyword), or pick a card.
+ *
+ * Group and search are owned by the parent so they survive a visit to an
+ * agent and back.
  */
-export default function AgentHub() {
+export default function AgentHub({ agents, groups, loading, error, onReload, group, onGroup, query, onQuery, onOpen }) {
   const { user } = useAuth()
-  const { agents, loading, error, reload } = useAgents()
-  const [group, setGroup] = useState('all')
-  const [query, setQuery] = useState('')
   const [ask, setAsk] = useState('')
   const [askMiss, setAskMiss] = useState(false)
-  // `session` carries a key so "New request" can remount a fresh run.
-  const [session, setSession] = useState(null)
+
+  const knownGroups = useMemo(() => {
+    const present = new Set(agents.map((agent) => agent.group))
+    return groups.filter((g) => present.has(g.id))
+  }, [agents, groups])
 
   const counts = useMemo(() => {
     const byGroup = { all: agents.length }
@@ -43,71 +35,68 @@ export default function AgentHub() {
     return byGroup
   }, [agents])
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return agents.filter((agent) => {
-      if (group !== 'all' && agent.group !== group) return false
-      if (!needle) return true
-      return [agent.name, agent.tagline, ...(agent.keywords ?? [])].some((text) =>
-        text.toLowerCase().includes(needle),
-      )
-    })
-  }, [agents, group, query])
+  const visible = useMemo(
+    () => agents.filter((agent) => (group === 'all' || agent.group === group) && matchesSearch(agent, query)),
+    [agents, group, query],
+  )
 
+  // "All" with no search is shown in sections, one per group in the server's
+  // order; agents whose group is not listed still appear, under "Other".
   const sections = useMemo(() => {
     if (group !== 'all' || query.trim()) return [{ id: 'results', label: null, items: visible }]
-    return GROUPS.map((g) => ({ ...g, items: visible.filter((agent) => agent.group === g.id) })).filter(
-      (section) => section.items.length > 0,
-    )
-  }, [group, query, visible])
+    const listed = new Set(knownGroups.map((g) => g.id))
+    const out = knownGroups.map((g) => ({ ...g, items: visible.filter((agent) => agent.group === g.id) }))
+    out.push({ id: '__other', label: 'Other', items: visible.filter((agent) => !listed.has(agent.group)) })
+    return out.filter((section) => section.items.length > 0)
+  }, [group, query, visible, knownGroups])
 
-  const open = (agent, request = '') => {
-    setSession({ agent, request, key: Date.now() })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  // Starters come from the agents' own examples, one each from the first few.
+  const starters = useMemo(
+    () =>
+      agents
+        .map((agent) => (Array.isArray(agent.examples) ? agent.examples[0] : null))
+        .filter((text) => typeof text === 'string' && text)
+        .slice(0, 4),
+    [agents],
+  )
 
   const submitAsk = (text) => {
     const value = text.trim()
     if (!value) return
-    const match = routeRequest(value)
+    const match = findAgentForText(agents, value)
     if (match) {
       setAskMiss(false)
       setAsk('')
-      open(match, value)
+      onOpen(match, value)
     } else {
-      // No confident match: narrow the grid with what they typed instead.
       setAskMiss(true)
-      setGroup('all')
-      setQuery(value.split(/\s+/).slice(0, 2).join(' '))
     }
   }
 
-  if (session) {
-    return (
-      <AgentSession
-        key={session.key}
-        agent={session.agent}
-        request={session.request}
-        onBack={() => setSession(null)}
-        onRestart={() => open(session.agent)}
-      />
-    )
+  // Starters are an agent's own example, so they go straight to that agent.
+  const openStarter = (text) => {
+    const owner = agents.find((agent) => Array.isArray(agent.examples) && agent.examples.includes(text))
+    if (owner) onOpen(owner, text)
   }
+
+  const ready = !loading && !error
 
   return (
     <div className="agent-hub">
       <section className="hub-hero">
-        <span className="hub-eyebrow">
-          <AgentIcon name="spark" size={14} />
-          {agents.length || 25} AI agents{IS_DEMO && ' · demo mode'}
-        </span>
+        {ready && agents.length > 0 && (
+          <span className="hub-eyebrow">
+            <AgentIcon name="spark" size={14} />
+            {agents.length} AI {agents.length === 1 ? 'agent' : 'agents'}
+          </span>
+        )}
         <h2 className="hub-title">
           {greeting()}, {displayName(user).split(' ')[0]}.{' '}
-          <span className="gradient-text">What should your agent do?</span>
+          <span className="gradient-text">What should your agent write?</span>
         </h2>
         <p className="muted hub-sub">
-          Describe it in your own words, or pick an agent below. It plans the steps, finds options and
-          handles the booking.
+          Answers, explanations, drafts and plans — written by a model running on your own server. Agents
+          only write text; they never send, book or buy anything.
         </p>
 
         <form
@@ -118,7 +107,9 @@ export default function AgentHub() {
           }}
         >
           <AgentIcon name="spark" size={20} className="hub-ask-icon" />
-          <label className="sr-only" htmlFor="hub-ask">Tell the agents what you need</label>
+          <label className="sr-only" htmlFor="hub-ask">
+            Describe what you need
+          </label>
           <input
             id="hub-ask"
             value={ask}
@@ -126,10 +117,11 @@ export default function AgentHub() {
               setAsk(event.target.value)
               setAskMiss(false)
             }}
-            placeholder="e.g. Book a table for 4 tonight in Bandra"
+            placeholder="e.g. Write an email asking for a deadline extension"
             autoComplete="off"
+            disabled={!ready || agents.length === 0}
           />
-          <button type="submit" className="btn btn-primary btn-glow" disabled={!ask.trim()}>
+          <button type="submit" className="btn btn-primary btn-glow" disabled={!ask.trim() || !ready}>
             Go
             <AgentIcon name="arrow" size={16} />
           </button>
@@ -137,51 +129,55 @@ export default function AgentHub() {
 
         {askMiss ? (
           <p className="hub-hint" role="status">
-            Not sure which agent fits that — here are the closest ones. Pick one to continue.
+            No agent clearly matches that. Pick one below, or search for a topic.
           </p>
         ) : (
-          <div className="hub-quick">
-            {QUICK_ASKS.map((text) => (
-              <button key={text} type="button" className="chip" onClick={() => submitAsk(text)}>
-                {text}
-              </button>
-            ))}
-          </div>
+          starters.length > 0 && (
+            <div className="hub-quick">
+              {starters.map((text) => (
+                <button key={text} type="button" className="chip" onClick={() => openStarter(text)}>
+                  {text}
+                </button>
+              ))}
+            </div>
+          )
         )}
       </section>
 
-      <div className="hub-toolbar">
-        <div className="hub-groups" role="tablist" aria-label="Agent categories">
-          {[{ id: 'all', label: 'All' }, ...GROUPS].map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              role="tab"
-              aria-selected={group === g.id}
-              className={`group-chip ${group === g.id ? 'group-chip-active' : ''}`}
-              onClick={() => setGroup(g.id)}
-            >
-              {g.label}
-              <span className="group-count">{counts[g.id] ?? 0}</span>
-            </button>
-          ))}
-        </div>
+      {ready && agents.length > 0 && (
+        <div className="hub-toolbar">
+          <div className="hub-groups" role="tablist" aria-label="Agent groups">
+            {[{ id: 'all', label: 'All' }, ...knownGroups].map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                role="tab"
+                aria-selected={group === g.id}
+                className={`group-chip ${group === g.id ? 'group-chip-active' : ''}`}
+                onClick={() => onGroup(g.id)}
+              >
+                {g.label}
+                <span className="group-count">{counts[g.id] ?? 0}</span>
+              </button>
+            ))}
+          </div>
 
-        <label className="hub-search">
-          <AgentIcon name="search" size={16} />
-          <span className="sr-only">Search agents</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search agents"
-          />
-        </label>
-      </div>
+          <label className="hub-search">
+            <AgentIcon name="search" size={16} />
+            <span className="sr-only">Search agents</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => onQuery(event.target.value)}
+              placeholder="Search agents"
+            />
+          </label>
+        </div>
+      )}
 
       {loading && (
         <ul className="agent-grid" aria-busy="true" aria-label="Loading agents">
-          {Array.from({ length: 8 }, (_, index) => (
+          {Array.from({ length: 6 }, (_, index) => (
             <li key={index} className="agent-tile-skeleton" />
           ))}
         </ul>
@@ -192,22 +188,30 @@ export default function AgentHub() {
           <p className="notice-title">Could not load agents</p>
           <p>{error}</p>
           <div className="notice-actions">
-            <button type="button" className="btn btn-small" onClick={reload}>Retry</button>
+            <button type="button" className="btn btn-small" onClick={onReload}>
+              Retry
+            </button>
           </div>
         </div>
       )}
 
-      {!loading && !error && visible.length === 0 && (
+      {ready && agents.length === 0 && (
         <div className="empty-state hub-empty">
-          <p className="empty-title">No agent matches “{query}”</p>
-          <button type="button" className="btn btn-link" onClick={() => setQuery('')}>
+          <p className="empty-title">No agents available yet</p>
+          <p className="muted">Agents added on the server will show up here.</p>
+        </div>
+      )}
+
+      {ready && agents.length > 0 && visible.length === 0 && (
+        <div className="empty-state hub-empty">
+          <p className="empty-title">No agent matches “{query.trim()}”</p>
+          <button type="button" className="btn btn-link" onClick={() => onQuery('')}>
             Clear search
           </button>
         </div>
       )}
 
-      {!loading &&
-        !error &&
+      {ready &&
         sections.map((section) => (
           <section key={section.id} className="hub-section">
             {section.label && (
@@ -218,7 +222,7 @@ export default function AgentHub() {
             )}
             <ul className="agent-grid">
               {section.items.map((agent, index) => (
-                <AgentCard key={agent.id} agent={agent} index={index} onOpen={(a) => open(a)} />
+                <AgentCard key={agent.id} agent={agent} index={index} onOpen={() => onOpen(agent)} />
               ))}
             </ul>
           </section>

@@ -21,7 +21,7 @@ export default function Header({ health, status, error, onRefresh, stats, view, 
           <h1 className="gradient-text">Rangify Intelligence</h1>
           <p className="muted">
             {view === 'agents'
-              ? 'AI agents that book, order, answer and draft for you.'
+              ? 'AI agents that answer, explain, draft and plan for you.'
               : 'Ask questions against your own PDFs — retrieval and all.'}
           </p>
         </div>

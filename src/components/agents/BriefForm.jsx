@@ -1,104 +1,130 @@
-import { useState } from 'react'
 import AgentIcon from './AgentIcon.jsx'
-import { initialValues } from '../../agents/catalog.js'
+import { LIMITS, fieldType, fieldsOf, promptField } from '../../agents/form.js'
+import { formatNumber } from '../../utils/format.js'
 
 /**
- * The agent's intake form, built from `agent.fields`. Wide fields (textareas)
- * take a full row; everything else flows two or three to a row.
+ * An agent's form, built from `agent.fields`. Fully controlled: values and
+ * errors live in the page, so "New request" can clear the answer and keep
+ * what was typed, and a failed request never loses the input.
  *
- * Validation is only "required is filled" — the agent is the one that makes
- * sense of the values, so there is nothing stricter worth checking here.
+ * `errors` is one message per field name — the page merges the client-side
+ * check with whatever the server sent back. While `running`, every field is
+ * locked so the request on screen is the one being answered.
  */
-export default function BriefForm({ agent, initial, request, onSubmit }) {
-  const [values, setValues] = useState(() => initial ?? initialValues(agent, request))
-  const [touched, setTouched] = useState(false)
-
-  const missing = agent.fields.filter(
-    (field) => field.required && !String(values[field.name] ?? '').trim(),
-  )
-
-  const set = (name, value) => setValues((current) => ({ ...current, [name]: value }))
+export default function BriefForm({ agent, values, errors, formError, running, onChange, onSubmit, onCancel }) {
+  const fields = fieldsOf(agent)
+  const exampleTarget = promptField(agent)
+  const examples = Array.isArray(agent.examples) ? agent.examples.filter((text) => typeof text === 'string') : []
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    setTouched(true)
-    if (missing.length === 0) onSubmit(values)
+    if (!running) onSubmit()
   }
-
-  // Examples fill the free-text field, which every answer agent has.
-  const exampleTarget = agent.fields.find((field) => field.name === 'request')
 
   return (
     <form className="brief" onSubmit={handleSubmit} noValidate>
-      <div className="brief-grid">
-        {agent.fields.map((field) => {
-          const id = `brief-${agent.id}-${field.name}`
-          const invalid = touched && missing.includes(field)
-          const common = {
-            id,
-            name: field.name,
-            value: values[field.name] ?? '',
-            onChange: (event) => set(field.name, event.target.value),
-            'aria-invalid': invalid || undefined,
-            required: field.required,
-          }
-          return (
-            <div
-              key={field.name}
-              className={`brief-field ${field.wide || field.type === 'textarea' ? 'brief-field-wide' : ''} ${invalid ? 'brief-field-invalid' : ''}`}
-            >
-              <label htmlFor={id}>
-                {field.label}
-                {field.required && <span className="brief-required" aria-hidden="true"> *</span>}
-              </label>
-              {field.type === 'select' ? (
-                <select {...common}>
-                  {field.options.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              ) : field.type === 'textarea' ? (
-                <textarea {...common} rows={field.rows ?? 3} placeholder={field.placeholder} />
-              ) : (
-                <input
-                  {...common}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  min={field.min}
-                  max={field.max}
-                />
-              )}
-              {invalid && <small className="brief-error">Required</small>}
-            </div>
-          )
-        })}
-      </div>
-
-      {exampleTarget && agent.examples?.length > 0 && (
-        <div className="brief-examples">
-          <span className="muted">Try:</span>
-          {agent.examples.map((example) => (
-            <button
-              type="button"
-              key={example}
-              className="chip"
-              onClick={() => set(exampleTarget.name, example)}
-            >
-              {example}
-            </button>
-          ))}
+      {formError && (
+        <div className="notice notice-error" role="alert">
+          <p className="notice-title">{formError.message}</p>
+          {formError.detail && <p className="notice-detail">{formError.detail}</p>}
         </div>
       )}
 
-      <div className="brief-actions">
-        {touched && missing.length > 0 && (
-          <p className="brief-summary-error" role="alert">
-            Fill in {missing.map((field) => field.label.toLowerCase()).join(', ')} to continue.
-          </p>
+      {/* A disabled fieldset locks every field at once while the agent works. */}
+      <fieldset className="brief-fieldset" disabled={running}>
+        <div className="brief-grid">
+          {fields.map((field) => {
+            const type = fieldType(field)
+            const id = `brief-${agent.id}-${field.name}`
+            const errorId = `${id}-error`
+            const counterId = `${id}-count`
+            const error = errors[field.name]
+            const value = values[field.name] ?? ''
+            const common = {
+              id,
+              name: field.name,
+              value,
+              onChange: (event) => onChange(field.name, event.target.value),
+              'aria-invalid': error ? true : undefined,
+              'aria-required': field.required ? true : undefined,
+              'aria-describedby': [error && errorId, type === 'textarea' && counterId].filter(Boolean).join(' ') || undefined,
+            }
+            const length = String(value).trim().length
+
+            return (
+              <div
+                key={field.name}
+                className={`brief-field ${field.wide || type === 'textarea' ? 'brief-field-wide' : ''} ${error ? 'brief-field-invalid' : ''}`}
+              >
+                <label htmlFor={id}>
+                  {field.label || field.name}
+                  {field.required && (
+                    <span className="brief-required">
+                      <span aria-hidden="true"> *</span>
+                      <span className="sr-only"> (required)</span>
+                    </span>
+                  )}
+                </label>
+
+                {type === 'select' ? (
+                  <select {...common}>
+                    {field.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : type === 'textarea' ? (
+                  <textarea {...common} rows={Number(field.rows) || 4} placeholder={field.placeholder} />
+                ) : type === 'number' ? (
+                  <input {...common} type="number" inputMode="decimal" placeholder={field.placeholder} min={field.min} max={field.max} />
+                ) : (
+                  <input {...common} type="text" placeholder={field.placeholder} />
+                )}
+
+                <div className="brief-field-foot">
+                  {error ? (
+                    <small id={errorId} className="brief-error">{error}</small>
+                  ) : (
+                    <span />
+                  )}
+                  {type === 'textarea' && (
+                    <small id={counterId} className={`brief-counter ${length > LIMITS.textarea ? 'over' : ''}`}>
+                      {formatNumber(length)} / {formatNumber(LIMITS.textarea)}
+                    </small>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {exampleTarget && examples.length > 0 && (
+          <div className="brief-examples">
+            <span className="muted">Try:</span>
+            {examples.map((example) => (
+              <button
+                type="button"
+                key={example}
+                className="chip"
+                onClick={() => onChange(exampleTarget.name, example)}
+              >
+                {example}
+              </button>
+            ))}
+          </div>
         )}
-        <button type="submit" className="btn btn-primary btn-glow">
+      </fieldset>
+
+      <div className="brief-actions">
+        {running && (
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+        <button type="submit" className="btn btn-primary btn-glow" disabled={running} aria-busy={running}>
           <AgentIcon name="spark" size={16} />
-          {agent.cta ?? 'Run agent'}
+          {running ? 'Thinking…' : agent.cta || 'Run'}
         </button>
       </div>
     </form>

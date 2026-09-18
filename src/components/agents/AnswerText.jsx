@@ -1,53 +1,67 @@
+import CopyButton from './CopyButton.jsx'
+import { parseAnswer } from '../../agents/answer.js'
+
 /**
- * Renders the agent's light-structure text (see src/api/agents.js):
- * "## " headings, "- " bullets, "1. " numbered steps, blank-line paragraphs.
- * Built as React nodes, never as HTML, so agent text can't inject markup.
+ * Renders exactly the markdown subset the backend normalises answers to:
+ *   "## " headings, "- " bullets, "1. " numbered lists, blank-line
+ *   paragraphs, and ``` fenced code blocks with an optional language.
+ *
+ * Everything becomes React text nodes — nothing is ever set as HTML — so
+ * whatever the model writes is escaped. Parsing lives in agents/answer.js.
+ *
+ * `allowCode={false}` drops fenced code blocks: a small model sometimes
+ * answers a travel or gift question with a JavaScript snippet, and for an
+ * agent that is not about code that is never what the user wanted.
  */
-export default function AnswerText({ text }) {
-  const blocks = []
-  let list = null
 
-  const flush = () => {
-    if (list) blocks.push(list)
-    list = null
-  }
-
-  for (const raw of String(text ?? '').split('\n')) {
-    const line = raw.trimEnd()
-    const bullet = line.match(/^- (.*)$/)
-    const numbered = line.match(/^\d+\. (.*)$/)
-
-    if (bullet || numbered) {
-      const type = bullet ? 'ul' : 'ol'
-      if (list?.type !== type) {
-        flush()
-        list = { type, items: [] }
-      }
-      list.items.push((bullet ?? numbered)[1])
-      continue
-    }
-
-    flush()
-    if (line.startsWith('## ')) blocks.push({ type: 'h', text: line.slice(3) })
-    else if (line.trim()) blocks.push({ type: 'p', text: line })
-    else blocks.push({ type: 'gap' })
-  }
-  flush()
-
+export default function AnswerText({ text, allowCode = true }) {
+  const blocks = parseAnswer(text).filter((block) => allowCode || block.type !== 'code')
   return (
     <div className="answer-text">
       {blocks.map((block, index) => {
-        if (block.type === 'h') return <h4 key={index}>{block.text}</h4>
-        if (block.type === 'p') return <p key={index}>{block.text}</p>
-        if (block.type === 'gap') return <span key={index} className="answer-gap" />
-        const List = block.type
-        return (
-          <List key={index}>
-            {block.items.map((item, itemIndex) => (
-              <li key={itemIndex}>{item}</li>
-            ))}
-          </List>
-        )
+        switch (block.type) {
+          case 'h':
+            return <h4 key={index}>{block.text}</h4>
+          case 'p':
+            return (
+              <p key={index}>
+                {block.lines.map((line, lineIndex) => (
+                  <span key={lineIndex}>
+                    {lineIndex > 0 && <br />}
+                    {line}
+                  </span>
+                ))}
+              </p>
+            )
+          case 'code':
+            return (
+              <div key={index} className="code-block">
+                <div className="code-head">
+                  <span>{block.lang || 'code'}</span>
+                  <CopyButton text={block.code} />
+                </div>
+                <pre>
+                  <code>{block.code}</code>
+                </pre>
+              </div>
+            )
+          case 'ol':
+            return (
+              <ol key={index} start={block.start}>
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>{item}</li>
+                ))}
+              </ol>
+            )
+          default:
+            return (
+              <ul key={index}>
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>{item}</li>
+                ))}
+              </ul>
+            )
+        }
       })}
     </div>
   )

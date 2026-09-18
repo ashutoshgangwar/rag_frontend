@@ -1,5 +1,6 @@
 /**
- * Line icons for the agent hub, keyed by the `icon` string in the catalog.
+ * Line icons for the agent hub, keyed by the `icon` string each agent
+ * carries from GET /api/agents.
  *
  * Same rules as auth/Icons.jsx: 24-grid, one stroke weight, `currentColor`.
  * An unknown key falls back to the spark, so an agent added on the backend
@@ -157,6 +158,12 @@ const PATHS = {
   check: <path d="m20 6-11 11-5-5" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   refresh: <path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" />,
+  copy: (
+    <>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </>
+  ),
   grid: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1.5" />

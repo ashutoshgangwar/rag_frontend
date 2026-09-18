@@ -13,11 +13,13 @@ if (!configuredBaseUrl) {
 export const API_BASE_URL = configuredBaseUrl.replace(/\/+$/, '')
 
 export class ApiError extends Error {
-  constructor(message, { status = null, network = false, cause } = {}) {
+  constructor(message, { status = null, network = false, details = null, cause } = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.network = network
+    // The backend's optional structured extras, e.g. { fields: { name: msg } }.
+    this.details = details
     if (cause) this.cause = cause
   }
 }
@@ -75,6 +77,7 @@ export async function parseResponse(res, { skipAuthRedirect = false } = {}) {
     handleUnauthorized(res.status, { skipAuthRedirect })
     throw new ApiError(body?.error || `Request failed with status ${res.status}.`, {
       status: res.status,
+      details: body?.details ?? null,
     })
   }
   return body
