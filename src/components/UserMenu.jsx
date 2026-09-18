@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext.js'
 import { displayName, initials } from '../utils/validation.js'
+import ThemeToggle from './ThemeToggle.jsx'
 
 /**
  * The signed-in avatar in the header. Click opens; Escape or a click outside
@@ -74,6 +75,12 @@ export default function UserMenu() {
                 </small>
               )}
             </div>
+          </div>
+
+          {/* Repeated here because the header copy is hidden on narrow screens. */}
+          <div className="user-popover-row">
+            <span className="muted">Theme</span>
+            <ThemeToggle />
           </div>
 
           <button

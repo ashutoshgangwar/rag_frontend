@@ -65,6 +65,9 @@ export default function DocumentRow({ file, onLoadChunks, onDelete, onReupload, 
     <li className={`doc-row ${file.status === 'failed' ? 'doc-row-failed' : ''}`}>
       <div className="doc-main">
         <div className="doc-title">
+          <span className="doc-icon" aria-hidden="true">
+            PDF
+          </span>
           <span className="doc-name" title={file.filename}>
             {file.filename}
           </span>

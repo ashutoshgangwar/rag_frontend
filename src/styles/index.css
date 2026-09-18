@@ -1,21 +1,29 @@
 /* ---------- tokens ---------- */
+/* Light is the base. Dark applies either because the OS asks for it and the
+   user has not forced light, or because the user picked dark explicitly
+   (html[data-theme], set by src/theme/theme.js). The two dark blocks must stay
+   identical — CSS cannot share one rule across a media query and a selector. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  --bg: #f3f3fb;
+  --bg: #f5f6fb;
+  --bg-tint: radial-gradient(1200px 520px at 10% -10%, rgb(91 78 240 / 9%), transparent 60%),
+    radial-gradient(900px 480px at 100% 0%, rgb(221 59 160 / 6%), transparent 60%);
   --surface: #ffffff;
-  --surface-2: #f1f2fa;
+  --surface-2: #f2f3f9;
+  --surface-3: #e9eaf4;
   --surface-glass: rgb(255 255 255 / 82%);
-  --border: #e3e3f1;
+  --border: #e2e3ef;
+  --border-strong: #cfd1e3;
   --text: #13131f;
-  --text-muted: #5b5e76;
+  --text-muted: #5d6078;
 
   /* One hue leads, two support. The gradient is built from all three and is
      the only place any of them appear together. */
   --accent: #5b4ef0;
   --accent-contrast: #ffffff;
-  --accent-soft: #ebe8ff;
-  --accent-2: #0bb3d9;
+  --accent-soft: #eeebff;
+  --accent-2: #0a9fc2;
   --accent-3: #dd3ba0;
 
   --danger: #c0392f;
@@ -27,55 +35,104 @@
 
   --gradient: linear-gradient(115deg, var(--accent) 0%, #9b3df5 45%, var(--accent-3) 100%);
   --gradient-cool: linear-gradient(115deg, var(--accent-2) 0%, var(--accent) 60%, #9b3df5 100%);
-  --glow: rgb(91 78 240 / 30%);
+  --glow: rgb(91 78 240 / 28%);
 
-  --radius: 10px;
-  --radius-sm: 6px;
+  --radius: 12px;
+  --radius-sm: 8px;
   --radius-lg: 18px;
-  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 5%);
+  --shadow: 0 1px 2px rgb(16 24 40 / 5%), 0 2px 8px rgb(16 24 40 / 4%);
   --shadow-lift: 0 18px 50px -12px rgb(35 20 90 / 22%);
+  --header-bg: rgb(255 255 255 / 78%);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #07060f;
-    --surface: #111022;
-    --surface-2: #1a1830;
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #0a0a14;
+    --bg-tint: radial-gradient(1200px 520px at 10% -10%, rgb(164 139 255 / 12%), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgb(255 111 208 / 7%), transparent 60%);
+    --surface: #12121f;
+    --surface-2: #1a1a2b;
+    --surface-3: #232338;
     --surface-glass: rgb(20 18 40 / 72%);
-    --border: #2a2745;
+    --border: #26263b;
+    --border-strong: #34344f;
     --text: #ecebfa;
-    --text-muted: #9997bb;
+    --text-muted: #9c9bb8;
 
     --accent: #a48bff;
     --accent-contrast: #0a0818;
-    --accent-soft: #241f45;
+    --accent-soft: #221d42;
     --accent-2: #4ee0ff;
     --accent-3: #ff6fd0;
 
     --danger: #ff7b6f;
-    --danger-soft: #3a1f1d;
+    --danger-soft: #341c1b;
     --success: #57d193;
-    --success-soft: #17301f;
+    --success-soft: #142a1d;
     --warn: #e8b765;
-    --warn-soft: #33270f;
+    --warn-soft: #2e230e;
 
     --gradient: linear-gradient(115deg, var(--accent) 0%, #c77bff 45%, var(--accent-3) 100%);
     --gradient-cool: linear-gradient(115deg, var(--accent-2) 0%, var(--accent) 60%, #c77bff 100%);
-    --glow: rgb(164 139 255 / 36%);
+    --glow: rgb(164 139 255 / 32%);
 
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 30%);
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 25%);
     --shadow-lift: 0 18px 50px -12px rgb(0 0 0 / 65%);
+    --header-bg: rgb(18 18 31 / 78%);
   }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0a0a14;
+  --bg-tint: radial-gradient(1200px 520px at 10% -10%, rgb(164 139 255 / 12%), transparent 60%),
+    radial-gradient(900px 480px at 100% 0%, rgb(255 111 208 / 7%), transparent 60%);
+  --surface: #12121f;
+  --surface-2: #1a1a2b;
+  --surface-3: #232338;
+  --surface-glass: rgb(20 18 40 / 72%);
+  --border: #26263b;
+  --border-strong: #34344f;
+  --text: #ecebfa;
+  --text-muted: #9c9bb8;
+
+  --accent: #a48bff;
+  --accent-contrast: #0a0818;
+  --accent-soft: #221d42;
+  --accent-2: #4ee0ff;
+  --accent-3: #ff6fd0;
+
+  --danger: #ff7b6f;
+  --danger-soft: #341c1b;
+  --success: #57d193;
+  --success-soft: #142a1d;
+  --warn: #e8b765;
+  --warn-soft: #2e230e;
+
+  --gradient: linear-gradient(115deg, var(--accent) 0%, #c77bff 45%, var(--accent-3) 100%);
+  --gradient-cool: linear-gradient(115deg, var(--accent-2) 0%, var(--accent) 60%, #c77bff 100%);
+  --glow: rgb(164 139 255 / 32%);
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 25%);
+  --shadow-lift: 0 18px 50px -12px rgb(0 0 0 / 65%);
+  --header-bg: rgb(18 18 31 / 78%);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100dvh;
+  background: var(--bg-tint), var(--bg);
+  background-attachment: fixed;
   color: var(--text);
-  font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font: 15px/1.55 Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 h1, h2, h3 { margin: 0; line-height: 1.25; }
@@ -1593,4 +1650,321 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 @media (max-width: 860px) {
   .followup { margin: 0 -1rem -1rem; padding: 0.7rem 1rem 0.9rem; }
+}
+
+/* =====================================================================
+   Visual refinements
+   Layered last so it can adjust earlier rules without rewriting them.
+   Presentation only — no layout that any component logic depends on.
+   ===================================================================== */
+
+/* ---------- scrollbars + selection ---------- */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--text-muted); }
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+/* Panels and controls fade between themes instead of snapping. */
+.panel, .app-header, .btn, .bubble, .doc-row, .source-card, .agent-tile,
+.agent-panel, .agent-result, .hub-hero, .dropzone, .composer textarea,
+.chip, .group-chip, .view-switch, .theme-toggle {
+  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* ---------- theme toggle ---------- */
+.theme-toggle {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  flex: none;
+}
+.theme-option {
+  display: grid; place-items: center;
+  width: 30px; height: 28px;
+  border: 0; border-radius: 999px;
+  background: transparent; color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.theme-option:hover { color: var(--text); }
+.theme-option-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%), 0 0 0 1px var(--border);
+}
+.auth-theme {
+  position: fixed; top: 1rem; right: 1rem; z-index: 10;
+  background: var(--surface-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+}
+.user-popover-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ---------- header ---------- */
+.app { max-width: 1240px; padding: 0 1.25rem 2rem; }
+.app-header {
+  position: sticky; top: 0.75rem; z-index: 30;
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.9rem 0.7rem 1.1rem;
+  background: var(--header-bg);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-radius: var(--radius-lg);
+}
+.app-header .brand .muted { font-size: 0.8rem; }
+.app-header h1 { font-size: 1.12rem; letter-spacing: -0.01em; }
+.header-meta { flex-wrap: wrap; justify-content: flex-end; }
+.view-switch { padding: 3px; }
+.view-tab { padding: 0.42rem 0.95rem; }
+.view-tab-active { box-shadow: 0 1px 3px rgb(0 0 0 / 10%), 0 0 0 1px var(--border); }
+
+/* ---------- panels ---------- */
+.layout { gap: 1.1rem; margin-top: 1.1rem; }
+.panel { padding: 1.15rem 1.2rem; border-radius: var(--radius-lg); }
+.panel-head h2 {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  font-size: 1rem; font-weight: 650; letter-spacing: -0.005em;
+}
+.panel-head h2::before {
+  content: '';
+  width: 4px; height: 1.05em;
+  border-radius: 999px;
+  background: var(--gradient);
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+}
+.btn:hover:not(:disabled) { border-color: var(--border-strong); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-primary {
+  background: var(--gradient);
+  background-size: 160% auto;
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 6px 18px -8px var(--glow);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--gradient);
+  background-size: 160% auto;
+  background-position: right center;
+  filter: none;
+  box-shadow: 0 10px 24px -8px var(--glow);
+}
+.btn-small { border-radius: 7px; }
+
+/* ---------- banners ---------- */
+.banner { border-radius: var(--radius-lg); border-left-width: 4px; box-shadow: var(--shadow); }
+.notice { border-radius: var(--radius); }
+
+/* ---------- empty states ---------- */
+.empty-state {
+  display: grid; justify-items: center; gap: 0.3rem;
+  padding: 2rem 1.25rem;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  border-color: var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+.empty-state::before {
+  content: '';
+  width: 46px; height: 46px; margin-bottom: 0.4rem;
+  border-radius: 14px;
+  background: var(--accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E") center / 22px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E") center / 22px no-repeat;
+  opacity: 0.9;
+}
+.empty-title { font-size: 1rem; }
+.empty-state .muted { max-width: 42ch; }
+
+/* ---------- chat ---------- */
+.chat-panel { height: calc(100dvh - 8.5rem); min-height: 540px; }
+/* Scrolls inside the panel: ChatWindow keeps it pinned to the newest message. */
+.message-list { max-height: none; min-height: 0; padding: 0.25rem 0.35rem 0.25rem 0; }
+.message { animation: fade-up 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.bubble { padding: 0.75rem 1rem; border-radius: 16px; line-height: 1.6; }
+.bubble-user {
+  background: var(--gradient);
+  color: #fff;
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 8px 20px -12px var(--glow);
+}
+.bubble-user .bubble-scope { color: rgb(255 255 255 / 78%); }
+.bubble-assistant {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: 16px 16px 16px 4px;
+  box-shadow: var(--shadow);
+}
+.bubble-error { border-radius: 16px 16px 16px 4px; }
+.message-system {
+  align-self: center;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.answer-meta { font-size: 0.78rem; }
+
+.composer { margin-top: 0.75rem; }
+.composer textarea {
+  resize: none;
+  min-height: 52px;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  line-height: 1.5;
+}
+.composer textarea:hover:not(:disabled) { border-color: var(--border-strong); }
+.composer textarea:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.composer-row .btn { min-height: 52px; padding-inline: 1.3rem; border-radius: var(--radius); }
+.scope-bar { border-radius: var(--radius); }
+
+/* ---------- upload ---------- */
+.dropzone {
+  padding: 1.6rem 1rem 1.4rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+.dropzone:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.dropzone::before {
+  content: '';
+  width: 44px; height: 44px; margin-bottom: 0.3rem;
+  background: var(--accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V4M7 9l5-5 5 5'/%3E%3Cpath d='M20 16v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3'/%3E%3C/svg%3E") center / 28px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V4M7 9l5-5 5 5'/%3E%3Cpath d='M20 16v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3'/%3E%3C/svg%3E") center / 28px no-repeat;
+  transition: transform 0.2s ease;
+}
+.dropzone-active::before { transform: translateY(-4px); }
+.dropzone-active { border-style: solid; box-shadow: 0 0 0 4px var(--accent-soft); }
+.progress { height: 8px; }
+.progress-fill { background: var(--gradient); }
+
+/* ---------- documents + sources ---------- */
+.doc-row { padding: 0.8rem 0.9rem; border-radius: var(--radius); }
+.doc-row:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+.doc-row-failed:hover { border-color: var(--danger); }
+.source-card { border-radius: var(--radius); background: var(--surface-2); border-color: transparent; }
+.source-content { background: var(--surface); }
+.pill { letter-spacing: 0.04em; }
+
+/* ---------- popovers + dialog ---------- */
+.health-popover, .scope-popover, .user-popover {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+  animation: fade-up 0.18s ease both;
+}
+.user-popover { width: 270px; }
+.dialog-backdrop { background: rgb(8 8 20 / 55%); backdrop-filter: blur(4px); animation: fade-in 0.15s ease both; }
+.dialog { border-radius: var(--radius-lg); padding: 1.35rem; box-shadow: var(--shadow-lift); animation: fade-up 0.2s ease both; }
+
+/* ---------- agents ---------- */
+.agent-tile:focus-visible { outline-offset: 3px; }
+.hub-ask { border-color: var(--border-strong); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 860px) {
+  .app { padding: 0 0.75rem 1.5rem; }
+  .app-header { top: 0.5rem; margin-top: 0.5rem; padding: 0.7rem 0.8rem; }
+  .app-header .brand .muted { display: none; }
+  .chat-panel { height: auto; min-height: 0; }
+  .message-list { max-height: 60vh; }
+  .composer-row .btn { min-height: 44px; }
+}
+@media (max-width: 560px) {
+  /* Still reachable from the user menu. */
+  .header-theme { display: none; }
+  .auth-theme { top: 0.6rem; right: 0.6rem; }
+}
+
+/* ---------- header: one row on desktop, two on phones ---------- */
+.app-header {
+  display: grid;
+  /* Brand gives way first; the right side never shrinks below its content. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  gap: 1rem;
+}
+.brand { min-width: 0; }
+.brand > div { min-width: 0; }
+.app-header h1,
+.app-header .brand .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-meta { justify-self: end; flex-wrap: nowrap; }
+/* The knowledge-base panel shows the same counts; the header copy is a bonus
+   for wide screens only. */
+@media (max-width: 1480px) {
+  .app-header .chunk-pill { display: none; }
+}
+
+/* ---------- chat + documents details ---------- */
+.message-list > .empty-state {
+  margin: auto 0;
+  border: 0;
+  background: transparent;
+}
+.panel-head h2 { white-space: nowrap; }
+.doc-title { flex-wrap: nowrap; align-items: flex-start; }
+.doc-title .pill { margin-left: auto; flex: none; }
+.doc-name { min-width: 0; flex: 1; line-height: 1.35; padding-top: 0.1rem; }
+.doc-icon {
+  display: grid; place-items: center; flex: none;
+  width: 34px; height: 40px;
+  border-radius: 6px 12px 6px 6px;
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+.doc-row { gap: 0.6rem; }
+.doc-meta { padding-left: calc(34px + 0.5rem); font-size: 0.8rem; }
+.doc-error { padding-left: calc(34px + 0.5rem); }
+.doc-actions { padding-top: 0.55rem; border-top: 1px solid var(--border); }
+.chunk-item { border-left: 3px solid var(--accent); }
+
+/* ---------- agents ---------- */
+/* Without this the chip row's nowrap width sets the grid's width on phones. */
+.agent-hub, .agent-page { grid-template-columns: minmax(0, 1fr); }
+.hub-toolbar, .hub-groups { min-width: 0; }
+.agent-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+.hub-section-title { font-weight: 650; }
+.brief-field select,
+.brief-field input { min-height: 44px; }
+.agent-page-head .btn-ghost { font-size: 0.85rem; }
+
+@media (max-width: 860px) {
+  .app-header { grid-template-columns: minmax(0, 1fr) auto; gap: 0.65rem; }
+  .app-header .view-switch { grid-row: 2; grid-column: 1 / -1; order: 0; }
+  /* A wrapping column sizes itself to its content; stacked, it must not wrap. */
+  .hub-toolbar { flex-wrap: nowrap; }
+  .agent-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
+@media (max-width: 560px) {
+  /* The dot and its colour carry the state; the label stays for screen readers. */
+  .health-badge { padding: 0.45rem; }
+  .health-badge > span:not(.dot) {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .doc-meta, .doc-error { padding-left: 0; }
 }

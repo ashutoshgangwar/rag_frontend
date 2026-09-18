@@ -1,6 +1,7 @@
 import BrandMark from './BrandMark.jsx'
 import HealthBadge from './HealthBadge.jsx'
 import UserMenu from './UserMenu.jsx'
+import ThemeToggle from './ThemeToggle.jsx'
 import AgentIcon from './agents/AgentIcon.jsx'
 import { formatNumber, pluralize } from '../utils/format.js'
 
@@ -50,6 +51,7 @@ export default function Header({ health, status, error, onRefresh, stats, view, 
           </span>
         )}
         <HealthBadge health={health} status={status} error={error} onRefresh={onRefresh} />
+        <ThemeToggle className="header-theme" />
         <UserMenu />
       </div>
     </header>

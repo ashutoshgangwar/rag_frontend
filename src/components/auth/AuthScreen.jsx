@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { USING_MOCK_AUTH } from '../../api/auth.js'
 import { useAuth } from '../../auth/AuthContext.js'
 import BrandMark from '../BrandMark.jsx'
+import ThemeToggle from '../ThemeToggle.jsx'
 import AuroraBackground from './AuroraBackground.jsx'
 import SignInForm from './SignInForm.jsx'
 import SignUpForm from './SignUpForm.jsx'
@@ -25,6 +26,7 @@ export default function AuthScreen() {
   return (
     <div className="auth-screen">
       <AuroraBackground />
+      <ThemeToggle className="auth-theme" />
 
       <section className="auth-pitch">
         <div className="brand brand-large">
